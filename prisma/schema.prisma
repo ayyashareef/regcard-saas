@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Local development uses SQLite. SQLite does NOT support Prisma `enum` types
+// (Postgres/MySQL only), so every former enum is a plain String column whose
+// allowed values live in lib/enums.ts (single source of truth, also used by
+// Zod validators). This keeps ONE schema that runs on SQLite locally and
+// remains portable to Postgres for production (only the `provider` and the
+// DATABASE_URL change; String columns are universal). The tradeoff vs. the
+// original Postgres enums: value integrity is enforced in the app layer
+// (Zod + TS unions) instead of by the database.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A tenant. Every company that signs up gets one Organization row.
+/// The URL path segment (`/<slug>/...`) resolves to this record.
+/// A single reserved Organization with slug "_platform" holds PLATFORM_ADMIN
+/// users who operate the SaaS itself; it is never exposed via signup.
+/// `status` is one of OrgStatus in lib/enums.ts ("ACTIVE" | "SUSPENDED").
+model Organization {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  status       String   @default("ACTIVE")
+  // Branding (Phase 5 surfaces these in UI + PDF; columns added now so the
+  // data model is stable and migrations don't churn later).
+  logoPath     String?
+  primaryColor String   @default("#1f6feb")
+  accentColor  String   @default("#e8c33d")
+  // Per-tenant reg-card number prefix (replaces the hard-coded "UG" prefix
+  // in lib/actions/reg-cards.ts and HOTEL_NAME in lib/config.ts).
+  cardNoPrefix String   @default("UG")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users             User[]
+  rooms             Room[]
+  regCards          RegCard[]
+  extensionRequests ExtensionRequest[]
+  auditLogs         AuditLog[]
+
+  @@map("organizations")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  orgId     String
+  email     String
+  name      String
+  password  String
+  // Role in lib/enums.ts: "PLATFORM_ADMIN" | "SUPER_ADMIN" | "MANAGER" | "STAFF"
+  role      String   @default("STAFF")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization       Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  extensionRequests  ExtensionRequest[] @relation("RequestedBy")
+  reviewedExtensions ExtensionRequest[] @relation("ReviewedBy")
+  auditLogs          AuditLog[]
+
+  // Email is unique within an organization, not globally — two tenants may
+  // each have manager@example.com.
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@map("users")
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  orgId     String
+  number    String
+  floor     String?
+  type      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  regCards     RegCard[]
+
+  @@unique([orgId, number])
+  @@index([orgId])
+  @@map("rooms")
+}
+
+model RegCard {
+  id                String    @id @default(cuid())
+  orgId             String
+  cardNo            String
+  date              DateTime  @default(now())
+  checkInTime       String?
+  checkOutTime      String?
+  checkOutDate      DateTime?
+  guestName         String?
+  contactNo         String?
+  whatsappNo        String?
+  email             String?
+  company           String?
+  nationality       String?
+  country           String?
+  // IdType in lib/enums.ts: "TOURIST" | "MALDIVIAN" | "WORK_PERMIT" | "DIPLOMAT"
+  idType            String    @default("TOURIST")
+  idNumber          String?
+  dateOfBirth       DateTime?
+  arrivalDate       DateTime?
+  departureDate     DateTime?
+  roomId            String?
+  room              Room?     @relation(fields: [roomId], references: [id])
+  // MealPlan in lib/enums.ts: "BB" | "HB" | "FB" (nullable)
+  mealPlan          String?
+  signatureData     String?
+  passportImagePath String?
+  passportPhoto     String?
+  chipPhoto         String?
+  rawMrzData        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  extensionRequests ExtensionRequest[]
+
+  // Card numbers are sequential per tenant, so unique within an org only.
+  @@unique([orgId, cardNo])
+  @@index([orgId])
+  @@index([cardNo])
+  @@index([guestName])
+  @@index([idNumber])
+  @@index([roomId])
+  @@map("reg_cards")
+}
+
+model ExtensionRequest {
+  id               String    @id @default(cuid())
+  orgId            String
+  regCardId        String
+  regCard          RegCard   @relation(fields: [regCardId], references: [id])
+  requestedById    String
+  requestedBy      User      @relation("RequestedBy", fields: [requestedById], references: [id])
+  newCheckoutTime  String?
+  newDepartureDate DateTime?
+  // ExtensionStatus in lib/enums.ts: "PENDING" | "APPROVED" | "REJECTED"
+  status           String    @default("PENDING")
+  note             String?
+  reviewedById     String?
+  reviewedBy       User?     @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("extension_requests")
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  orgId         String
+  // AuditAction / AuditEntity value sets live in lib/enums.ts
+  action        String
+  entity        String
+  entityId      String
+  entityLabel   String?
+  performedById String
+  performedBy   User      @relation(fields: [performedById], references: [id])
+  metadata      Json?
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("audit_logs")
+}
+
+model AuditLogArchive {
+  id            String    @id @default(cuid())
+  // Plain scalar (no FK) — the archive is intentionally decoupled, mirroring
+  // how performedById is stored without a relation. Still indexed for
+  // per-tenant queries.
+  orgId         String
+  action        String
+  entity        String
+  entityId      String
+  entityLabel   String?
+  performedById String
+  metadata      Json?
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([orgId])
+  @@map("audit_logs_archive")
+}

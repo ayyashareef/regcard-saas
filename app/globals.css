@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "react-datepicker/dist/react-datepicker.css";
+
+@theme inline {
+  /* Brand — design palette (was #C28C2A / #1F3A5F). v1 components keep working;
+     the values shift to the design's editorial gold + deep navy. */
+  --color-brand: #b8893b;
+  --color-brand-light: #d3a657;
+  --color-brand-soft: #d9b86a;
+  --color-brand-dark: #a07424;
+  --color-brand-deep: #8a6420;
+
+  /* Cream / paper backgrounds for v2 surfaces. */
+  --color-cream: #f6f1e7;
+  --color-cream-2: #efe7d4;
+  --color-paper: #fbf8f1;
+
+  /* Hairline borders for v2 surfaces. */
+  --color-line: #e6dec9;
+  --color-line-2: #d8ceb3;
+
+  /* Ink shades (navy family). */
+  --color-ink: #0f1a2e;
+  --color-ink-2: #1a2942;
+  --color-ink-3: #2b3a55;
+
+  /* Text. */
+  --color-text-soft: #5a6172;
+
+  /* Neutrals retained from v1 so old pages keep their existing surfaces. */
+  --color-neutral-bg: #ffffff;
+  --color-neutral-section: #f8f8f8;
+  --color-neutral-border: #e5e5e5;
+  --color-neutral-text: #1d2433;
+  --color-neutral-muted: #555555;
+
+  /* Accents — accent-navy shifts to match the design's --ink. */
+  --color-accent-navy: #0f1a2e;
+  --color-accent-teal: #0f766e;
+  --color-accent-purple: #8b5cf6;
+
+  /* Status colors used by the design. */
+  --color-status-green: #3f7a4a;
+  --color-status-red: #a44a3a;
+
+  /* Fonts. Inter is wired in app/layout.tsx via next/font; the variable
+     references the className it injects. Cormorant Garamond + JetBrains Mono
+     follow the same pattern. */
+  --font-sans: var(--font-inter, "Inter"), system-ui, sans-serif;
+  --font-serif: var(--font-serif-cormorant, "Cormorant Garamond"), Georgia, serif;
+  --font-mono: var(--font-mono-jetbrains, "JetBrains Mono"), ui-monospace, monospace;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #1d2433;
+}
+
+* {
+  border-color: var(--color-neutral-border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-brand {
+  font-family: var(--font-brand), Georgia, serif;
+}
+
+input, select, textarea {
+  font-size: 16px; /* Prevents iOS zoom */
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-neutral-section);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-muted);
+}

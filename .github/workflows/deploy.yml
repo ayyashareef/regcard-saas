@@ -1,0 +1,75 @@
+name: Deploy RegCard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Run prisma db seed after deploy"
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Upload code to server
+        env:
+          SSHPASS: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          sudo apt-get install -qq -y sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          tar czf /tmp/deploy.tar.gz --exclude=node_modules --exclude=.next --exclude=.git --exclude=.env --exclude=uploads --exclude=logs .
+          sshpass -e scp -o StrictHostKeyChecking=no /tmp/deploy.tar.gz ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/deploy.tar.gz
+          echo "Upload complete"
+
+      - name: Extract, build, and restart
+        uses: appleboy/ssh-action@v1
+        env:
+          SEED_DATABASE: ${{ inputs.seed && 'true' || 'false' }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          command_timeout: 10m
+          envs: SEED_DATABASE
+          script: |
+            set -e
+            echo "Extracting code..."
+            tar xzf /tmp/deploy.tar.gz -C /var/www/regcard
+            rm -f /tmp/deploy.tar.gz
+
+            cd /var/www/regcard
+            mkdir -p logs uploads
+
+            echo "Installing dependencies..."
+            npm ci
+
+            echo "Applying database migrations..."
+            npx prisma generate
+            npx prisma migrate deploy
+
+            echo "Building application..."
+            NODE_OPTIONS="--max-old-space-size=1024" npm run build
+
+            echo "Pruning dev dependencies..."
+            npm prune --omit=dev
+
+            if [ "${SEED_DATABASE:-false}" = "true" ]; then
+              echo "SEED_DATABASE=true — running seed..."
+              npx prisma db seed
+            else
+              echo "Skipping seed (set SEED_DATABASE=true on the deploy step to run it)"
+            fi
+
+            echo "Restarting application..."
+            pm2 describe regcard > /dev/null 2>&1 && pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+            pm2 save
+
+            echo "Deployment complete!"
