@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getOrg } from "@/lib/tenant";
+import { brandCssVars } from "@/lib/branding";
 import LoginForm from "./login-form";
 
 // The slug comes from the middleware-set header (URL was /<slug>/login).
@@ -9,5 +10,11 @@ export default async function LoginPage() {
   const org = await getOrg();
   if (!org || org.status !== "ACTIVE") notFound();
 
-  return <LoginForm orgSlug={org.slug} orgName={org.name} />;
+  const logoUrl = org.logoPath ? `/api/branding/${org.slug}/logo` : null;
+
+  return (
+    <div style={brandCssVars(org.primaryColor, org.accentColor)}>
+      <LoginForm orgSlug={org.slug} orgName={org.name} logoUrl={logoUrl} />
+    </div>
+  );
 }

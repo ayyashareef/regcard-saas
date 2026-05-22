@@ -74,3 +74,16 @@ export async function requireTenant() {
   if (!orgId) throw new Error("Unauthorized");
   return { session, orgId };
 }
+
+/**
+ * Gate the platform-operator area (`/platform`). PLATFORM_ADMIN users live in
+ * the reserved `_platform` org and log in via `/_platform/login`.
+ */
+export async function requirePlatformAdmin() {
+  const session = await auth();
+  if (!session?.user) redirect("/_platform/login");
+  if (session.user.role !== "PLATFORM_ADMIN") {
+    redirect(`/${session.user.orgSlug}/dashboard`);
+  }
+  return session;
+}

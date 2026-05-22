@@ -185,3 +185,91 @@ ss -tlnp | grep 3003
 pm2 restart regcard
 systemctl restart nginx
 ```
+
+---
+
+# Multi-Tenant SaaS notes
+
+This app is now a multi-tenant SaaS. Companies self-register at `/signup` and
+work under a path prefix: `https://yourdomain.com/<org-slug>/...`. There is a
+single domain and a single TLS cert — **no wildcard DNS is required** (that was
+a deliberate choice; tenancy is path-based, not subdomain-based).
+
+Key URLs:
+- `/signup` — public self-serve company signup (creates an org + first admin).
+- `/<slug>/login` — per-tenant login (branded with the org's logo/colors).
+- `/<slug>/dashboard` … — the tenant app.
+- `/platform` — operator console (PLATFORM_ADMIN only): list/suspend/reactivate
+  tenants. PLATFORM_ADMIN lives in the reserved `_platform` org and signs in at
+  `/_platform/login`.
+
+## Production environment (.env)
+
+Do **not** use the SQLite line from section 4 in production — that's local-dev
+only. Use Postgres and strong secrets:
+
+```bash
+cat > .env << 'EOF'
+DATABASE_URL="postgresql://regcard:STRONG_PW@localhost:5432/regcard?schema=public"
+AUTH_SECRET="PASTE_OUTPUT_OF_openssl_rand_base64_32"
+NEXTAUTH_URL="https://yourdomain.com"
+AUTH_URL="https://yourdomain.com"
+UPLOAD_DIR="/var/www/regcard/uploads"
+CRON_SECRET="PASTE_ANOTHER_RANDOM_SECRET"
+# Seed secrets are only needed if you run `npm run seed` (creates _platform +
+# a demo org). For a clean SaaS, skip seeding and create tenants via /signup.
+EOF
+```
+
+`UPLOAD_DIR` holds per-tenant logos (`<orgId>/logo.*`) and passport images.
+Keep it on a **persistent volume** and include it in backups — it is not in git.
+
+## Postgres cutover (local dev is SQLite; production is Postgres)
+
+The schema is written to be portable — the former enums are `String` columns
+(values centralized in `lib/enums.ts`), so only the datasource changes. To cut
+over to Postgres:
+
+1. In `prisma/schema.prisma`, set the datasource provider:
+   ```prisma
+   datasource db { provider = "postgresql"  url = env("DATABASE_URL") }
+   ```
+2. The committed migration in `prisma/migrations/` is SQLite-flavored. For
+   Postgres, regenerate a clean baseline against your prod (or a staging) DB:
+   ```bash
+   rm -rf prisma/migrations            # SQLite baseline; not Postgres-compatible
+   DATABASE_URL=postgresql://... npx prisma migrate dev --name init
+   ```
+   Commit the new Postgres migration, then on the server use:
+   ```bash
+   npx prisma migrate deploy
+   ```
+3. `npx prisma generate && npm run build`.
+
+> Tip: keep two env files (`.env` SQLite for local, server `.env` Postgres) and
+> only flip the `provider` line when building for production. A future
+> improvement is two schema files or a generator script if you want both
+> providers in one branch without manual edits.
+
+## Postgres install (on the droplet)
+
+```bash
+apt install -y postgresql
+sudo -u postgres psql -c "CREATE USER regcard WITH PASSWORD 'STRONG_PW';"
+sudo -u postgres psql -c "CREATE DATABASE regcard OWNER regcard;"
+```
+
+## Nginx for path-based tenancy
+
+The existing single-`location /` block already works — every `/<slug>/...`
+path proxies to the app and the app resolves the tenant. Just point
+`server_name` at your domain and run certbot (section: HTTPS). `client_max_body_size`
+should stay ≥ 20M for passport-image and logo uploads.
+
+## Deferred: mobile API
+
+`/api/mobile/**` is intentionally **disabled (HTTP 503)** and `lib/mobile-auth.ts`
+is a stub. The chosen design for re-enabling: mobile login carries an org slug,
+the issued JWT embeds `orgId`, and every mobile route scopes by it. Until that
+work lands, the disabled state guarantees the mobile API cannot serve or leak
+cross-tenant data.

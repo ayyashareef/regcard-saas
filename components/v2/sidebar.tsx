@@ -85,11 +85,19 @@ const operations: NavItem[] = [
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /></svg>
     ),
   },
+  {
+    href: "/admin/branding",
+    label: "Branding",
+    roles: ["SUPER_ADMIN"],
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="2.5" /><circle cx="6.5" cy="11.5" r="2.5" /><circle cx="17.5" cy="13.5" r="2.5" /><path d="M3 21c0-3 2-5 5-5" /></svg>
+    ),
+  },
 ];
 
 export function SidebarV2({ role, pendingExtensions }: SidebarProps) {
   const pathname = usePathname();
-  const { name: orgName } = useOrg();
+  const { name: orgName, logoUrl } = useOrg();
   const op = useOrgPath();
   const { collapsed, mobileOpen, setMobileOpen } = useShell();
   const closeMobile = () => setMobileOpen(false);
@@ -121,14 +129,24 @@ export function SidebarV2({ role, pendingExtensions }: SidebarProps) {
           onClick={closeMobile}
           className="flex flex-col items-center gap-2"
         >
-          <Image
-            src={FLOWER_MARK}
-            alt=""
-            width={143}
-            height={99}
-            style={{ width: rail ? 30 : 48, height: "auto" }}
-            priority
-          />
+          {logoUrl ? (
+            // Tenant-uploaded logo (served from the public branding route).
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={orgName}
+              style={{ width: rail ? 30 : 48, height: "auto", maxHeight: rail ? 30 : 56, objectFit: "contain" }}
+            />
+          ) : (
+            <Image
+              src={FLOWER_MARK}
+              alt=""
+              width={143}
+              height={99}
+              style={{ width: rail ? 30 : 48, height: "auto" }}
+              priority
+            />
+          )}
           {!rail && (
             <span
               className="font-brand leading-none"

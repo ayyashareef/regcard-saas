@@ -3,25 +3,29 @@
 import { createContext, useContext } from "react";
 import { orgPath } from "@/lib/org-path";
 
-/**
- * Makes the current tenant slug available to client components so links and
- * client-side navigation can be org-prefixed. Seeded once by the dashboard
- * server layout (which reads the slug from the middleware-set header).
- */
-const OrgContext = createContext<{ slug: string; name: string } | null>(null);
-
-export function OrgProvider({
-  slug,
-  name,
-  children,
-}: {
+interface OrgContextValue {
   slug: string;
   name: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  accentColor: string;
+}
+
+/**
+ * Makes the current tenant (slug, name, logo, brand colors) available to
+ * client components so links can be org-prefixed and the sidebar/login can
+ * render the tenant's identity. Seeded once by the dashboard server layout.
+ */
+const OrgContext = createContext<OrgContextValue | null>(null);
+
+export function OrgProvider({
+  value,
+  children,
+}: {
+  value: OrgContextValue;
   children: React.ReactNode;
 }) {
-  return (
-    <OrgContext.Provider value={{ slug, name }}>{children}</OrgContext.Provider>
-  );
+  return <OrgContext.Provider value={value}>{children}</OrgContext.Provider>;
 }
 
 export function useOrg() {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getRegCard } from "@/lib/actions/reg-cards";
 import { prisma } from "@/lib/prisma";
+import { hexToRgb, shade } from "@/lib/branding";
 import { jsPDF } from "jspdf";
 import fs from "fs";
 import path from "path";
@@ -35,18 +36,33 @@ export async function GET(
     },
   });
 
+  // Tenant branding for the document (name, logo, colors).
+  const org = await prisma.organization.findUnique({
+    where: { id: session.user.orgId },
+    select: { name: true, logoPath: true, primaryColor: true },
+  });
+  const orgName = org?.name ?? "RegCard";
+  const [hr, hg, hb] = hexToRgb(org?.primaryColor ?? "#b8893b");
+  const [dr, dg, db] = hexToRgb(shade(org?.primaryColor ?? "#b8893b", -0.34));
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const fmtDate = (d: Date | null | undefined) =>
     d ? d.toLocaleDateString("en-GB") : "—";
 
-  // Load logo and convert to white version
+  // Load logo and convert to white version. Prefer the tenant's uploaded
+  // logo; fall back to the bundled default.
   let logoBase64: string | null = null;
   let logoAspect = 1;
   try {
     const sharp = require("sharp");
-    const logoBuffer = fs.readFileSync(path.join(process.cwd(), "public", "logo.png"));
+    const uploadRoot = path.resolve(process.cwd(), process.env.UPLOAD_DIR || "./uploads");
+    const orgLogoPath = org?.logoPath ? path.join(uploadRoot, org.logoPath) : null;
+    const logoBuffer =
+      orgLogoPath && fs.existsSync(orgLogoPath)
+        ? fs.readFileSync(orgLogoPath)
+        : fs.readFileSync(path.join(process.cwd(), "public", "logo.png"));
     const meta = await sharp(logoBuffer).metadata();
     const { width, height } = meta;
     if (width && height) {
@@ -80,7 +96,7 @@ export async function GET(
 
   // Header
   const headerH = 45;
-  doc.setFillColor(194, 140, 42);
+  doc.setFillColor(hr, hg, hb);
   doc.rect(0, 0, pageWidth, headerH, "F");
   if (logoBase64) {
     const logoH = 28;
@@ -94,7 +110,7 @@ export async function GET(
   doc.text("GUEST REGISTRATION CARD", pageWidth / 2, headerH - 4, { align: "center" });
 
   // Card number
-  doc.setTextColor(122, 87, 24);
+  doc.setTextColor(dr, dg, db);
   doc.setFontSize(14);
   doc.text(regCard.cardNo, pageWidth / 2, 56, { align: "center" });
 
@@ -126,7 +142,7 @@ export async function GET(
   doc.setFillColor(248, 248, 248);
   doc.rect(10, y - 4, pageWidth - 20, lineHeight, "F");
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(122, 87, 24);
+  doc.setTextColor(dr, dg, db);
   doc.setFontSize(10);
   doc.text("BASIC INFORMATION", leftCol, y);
   y += lineHeight;
@@ -142,7 +158,7 @@ export async function GET(
   doc.setFillColor(248, 248, 248);
   doc.rect(10, y - 4, pageWidth - 20, lineHeight, "F");
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(122, 87, 24);
+  doc.setTextColor(dr, dg, db);
   doc.setFontSize(10);
   doc.text("GUEST INFORMATION", leftCol, y);
   y += lineHeight;
@@ -159,7 +175,7 @@ export async function GET(
   doc.setFillColor(248, 248, 248);
   doc.rect(10, y - 4, pageWidth - 20, lineHeight, "F");
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(122, 87, 24);
+  doc.setTextColor(dr, dg, db);
   doc.setFontSize(10);
   doc.text("STAY DETAILS", leftCol, y);
   y += lineHeight;
@@ -173,7 +189,7 @@ export async function GET(
   doc.setFont("helvetica", "italic");
   doc.setFontSize(7);
   doc.setTextColor(85, 85, 85);
-  const disclaimer = "The safekeeping of money, jewels and other valuable brought to the Guest House (Unima Grand) are sole responsibility of the guests. Unima Grand accept no liability and shall not be responsible for any loss or damage thereto and guest remain solely responsible for the safekeeping of any such item.";
+  const disclaimer = `The safekeeping of money, jewels and other valuables brought to ${orgName} are the sole responsibility of the guests. ${orgName} accepts no liability and shall not be responsible for any loss or damage thereto, and the guest remains solely responsible for the safekeeping of any such item.`;
   const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 30);
   doc.text(disclaimerLines, leftCol, y);
   y += disclaimerLines.length * 3.5 + 4;
@@ -181,7 +197,7 @@ export async function GET(
   // Signature
   if (regCard.signatureData) {
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(122, 87, 24);
+    doc.setTextColor(dr, dg, db);
     doc.setFontSize(10);
     doc.text("GUEST SIGNATURE", leftCol, y);
     y += 5;
@@ -196,12 +212,12 @@ export async function GET(
 
   // Footer
   y += 10;
-  doc.setDrawColor(194, 140, 42);
+  doc.setDrawColor(hr, hg, hb);
   doc.line(10, y, pageWidth - 10, y);
   y += 5;
   doc.setFontSize(7);
   doc.setTextColor(85, 85, 85);
-  doc.text("This is a computer-generated document. Unima Grand Hotel.", pageWidth / 2, y, { align: "center" });
+  doc.text(`This is a computer-generated document. ${orgName}.`, pageWidth / 2, y, { align: "center" });
 
   const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
 

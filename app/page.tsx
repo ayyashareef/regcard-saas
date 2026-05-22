@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
@@ -21,14 +22,17 @@ export default async function Home() {
         <p className="text-neutral-muted mt-3 text-sm">
           Guest registration, multi-tenant.
         </p>
-        <p className="text-neutral-text mt-6 text-sm">
-          Go to your organization workspace at{" "}
+        <Link
+          href="/signup"
+          className="mt-7 inline-block w-full bg-brand hover:bg-brand-light text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
+        >
+          Create your workspace
+        </Link>
+        <p className="text-neutral-text mt-5 text-sm">
+          Already have one? Sign in at{" "}
           <code className="px-1.5 py-0.5 rounded bg-neutral-section font-mono text-xs">
-            /your-org
+            /your-org/login
           </code>
-        </p>
-        <p className="text-neutral-muted mt-2 text-xs">
-          Self-serve signup is coming soon.
         </p>
       </div>
     </main>

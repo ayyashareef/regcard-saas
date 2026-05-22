@@ -9,9 +9,11 @@ import { APP_LOGO } from "@/lib/config";
 export default function LoginForm({
   orgSlug,
   orgName,
+  logoUrl,
 }: {
   orgSlug: string;
   orgName: string;
+  logoUrl: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +51,12 @@ export default function LoginForm({
     <div className="bg-white rounded-2xl shadow-xl p-8 border border-neutral-border">
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
-          <Image src={APP_LOGO} alt={orgName} width={80} height={80} className="rounded-lg" />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={orgName} className="h-20 w-auto max-w-[180px] object-contain" />
+          ) : (
+            <Image src={APP_LOGO} alt={orgName} width={80} height={80} className="rounded-lg" />
+          )}
         </div>
         <h1 className="font-brand text-2xl text-brand-deep">{orgName}</h1>
         <p className="text-neutral-muted mt-1 text-sm">Sign in to your workspace</p>

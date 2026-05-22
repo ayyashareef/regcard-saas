@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import authConfig from "@/lib/auth.config";
+import { APP_ROUTES as APP_ROUTE_LIST } from "@/lib/slug";
 import { NextResponse } from "next/server";
 
 // Edge-safe NextAuth instance: authConfig has no Prisma/bcrypt, and with the
@@ -7,18 +8,9 @@ import { NextResponse } from "next/server";
 const { auth } = NextAuth(authConfig);
 
 // First path segments that are real app routes, NOT tenant slugs. The tenant
-// route space is `/<slug>/<one-of-these>/...`. Kept in sync with app/.
-// (Slugs colliding with these names are rejected at signup — Phase 4.)
-const APP_ROUTES = new Set([
-  "dashboard",
-  "reg-cards",
-  "rooms",
-  "users",
-  "extensions",
-  "audit",
-  "admin",
-  "login",
-]);
+// route space is `/<slug>/<one-of-these>/...`. Shared with signup validation
+// (lib/slug.ts) so a slug can never collide with a route.
+const APP_ROUTES = new Set<string>(APP_ROUTE_LIST);
 
 // Non-tenant public segments.
 const PUBLIC_TOP = new Set(["", "signup"]);
@@ -66,6 +58,19 @@ export default auth((req) => {
       );
     }
     return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // --- Platform-operator area (not a tenant) -------------------------
+  if (first === "platform") {
+    if (!isLoggedIn) {
+      return NextResponse.redirect(new URL("/_platform/login", req.url));
+    }
+    if (req.auth?.user?.role !== "PLATFORM_ADMIN") {
+      return NextResponse.redirect(
+        new URL(userSlug ? `/${userSlug}/dashboard` : "/", req.url)
+      );
+    }
+    return NextResponse.next();
   }
 
   // --- Tenant routes: `first` is an org slug -------------------------
