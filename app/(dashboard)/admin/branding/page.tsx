@@ -10,7 +10,7 @@ export default async function BrandingPage() {
   const logoUrl = org.logoPath ? `/api/branding/${org.slug}/logo` : null;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-9 py-8">
+    <div className="page">
       <PageHeaderV2
         eyebrow="Settings"
         title="Branding"
