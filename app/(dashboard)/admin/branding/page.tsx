@@ -21,6 +21,7 @@ export default async function BrandingPage() {
           name: org.name,
           primaryColor: org.primaryColor,
           accentColor: org.accentColor,
+          sidebarColor: org.sidebarColor,
           cardNoPrefix: org.cardNoPrefix,
         }}
         logoUrl={logoUrl}

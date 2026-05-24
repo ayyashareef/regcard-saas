@@ -10,7 +10,13 @@ import {
 } from "@/lib/actions/branding";
 
 interface Props {
-  initial: { name: string; primaryColor: string; accentColor: string; cardNoPrefix: string };
+  initial: {
+    name: string;
+    primaryColor: string;
+    accentColor: string;
+    sidebarColor: string;
+    cardNoPrefix: string;
+  };
   logoUrl: string | null;
 }
 
@@ -20,10 +26,21 @@ const label = "block text-sm font-medium text-neutral-text mb-1.5";
 const input =
   "w-full px-3 py-2 rounded-lg border border-neutral-border focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand text-sm";
 
+// Legible foreground for a given background (mirrors lib/branding.readableOn).
+function readableText(hex: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  const h = m ? m[1] : "0f1a2e";
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5 ? "#f5ecd2" : "#1a2942";
+}
+
 export default function BrandingForm({ initial, logoUrl }: Props) {
   const router = useRouter();
   const [primary, setPrimary] = useState(initial.primaryColor);
   const [accent, setAccent] = useState(initial.accentColor);
+  const [sidebar, setSidebar] = useState(initial.sidebarColor);
 
   const [settingsState, settingsAction, settingsPending] = useActionState(updateBranding, undefined);
   const [logoState, logoAction, logoPending] = useActionState(uploadBrandingLogo, undefined);
@@ -75,11 +92,23 @@ export default function BrandingForm({ initial, logoUrl }: Props) {
           </div>
         </div>
 
+        <div className="mb-4">
+          <label htmlFor="sidebarColor" className={label}>Sidebar color</label>
+          <div className="flex items-center gap-2">
+            <input type="color" value={sidebar} onChange={(e) => setSidebar(e.target.value)}
+              className="h-9 w-12 rounded border border-neutral-border" aria-label="Sidebar color" />
+            <input name="sidebarColor" value={sidebar} onChange={(e) => setSidebar(e.target.value)}
+              className={`${input} font-mono`} />
+          </div>
+          <p className="text-neutral-muted mt-1 text-xs">Dashboard navigation background — text/icons adapt automatically for contrast.</p>
+        </div>
+
         {/* Live preview */}
-        <div className="mb-4 flex items-center gap-3 rounded-lg p-3" style={{ background: "var(--color-cream)" }}>
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg p-3" style={{ background: "var(--color-cream)" }}>
           <span className="text-xs text-neutral-muted">Preview</span>
           <span className="rounded px-3 py-1.5 text-xs font-semibold text-white" style={{ background: primary }}>Primary</span>
           <span className="rounded px-3 py-1.5 text-xs font-semibold" style={{ background: accent, color: "#1a2942" }}>Accent</span>
+          <span className="rounded px-3 py-1.5 text-xs font-semibold" style={{ background: sidebar, color: readableText(sidebar) }}>Sidebar</span>
         </div>
 
         <div className="mb-4">

@@ -5,7 +5,9 @@ import { z } from "zod";
 const optStr = (max: number) => z.string().max(max).optional().nullable();
 
 const idTypeEnum = z.enum(["TOURIST", "MALDIVIAN", "WORK_PERMIT", "DIPLOMAT"]);
-const mealPlanEnum = z.enum(["BB", "HB", "FB"]);
+// mealPlan maps to a nullable column. Allow "" (empty select) in addition to
+// the enum values; toPrismaData turns "" into null before it reaches the DB.
+const mealPlanEnum = z.union([z.enum(["BB", "HB", "FB"]), z.literal("")]);
 
 const fields = {
   date: optStr(64),

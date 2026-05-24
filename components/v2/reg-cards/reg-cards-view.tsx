@@ -90,9 +90,9 @@ const chip = (active: boolean): React.CSSProperties => ({
   fontWeight: 500,
   textDecoration: "none",
   whiteSpace: "nowrap",
-  background: active ? "var(--color-ink-2)" : "#fff",
-  color: active ? "#f5ecd2" : "var(--color-neutral-text)",
-  borderColor: active ? "var(--color-ink-2)" : "var(--color-line)",
+  background: active ? "var(--color-brand)" : "#fff",
+  color: active ? "#fff" : "var(--color-neutral-text)",
+  borderColor: active ? "var(--color-brand-dark)" : "var(--color-line)",
 });
 
 export function RegCardsView({ cards, total, page, limit, q, status }: Props) {

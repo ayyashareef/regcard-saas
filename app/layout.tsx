@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond, JetBrains_Mono } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -9,29 +8,29 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const cormorant = Cormorant_Garamond({
+// Inter Tight — used for headings / wordmarks (--font-tight, --font-serif).
+const interTight = Inter_Tight({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
-  variable: "--font-serif-cormorant",
+  variable: "--font-inter-tight",
   display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600"],
   variable: "--font-mono-jetbrains",
   display: "swap",
 });
 
-const brandFont = localFont({
-  src: "../public/fonts/Rossetti-W00-Regular.ttf",
-  variable: "--font-brand",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "RegCard — Unima Grand",
-  description: "Hotel registration card processing system",
+  // `default` is used by public pages (landing/signup); tenant layouts set the
+  // company name which the template renders as "Reg Card — <company>".
+  title: {
+    default: "Reg Card",
+    template: "Reg Card — %s",
+  },
+  description: "Guest registration card processing system",
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -52,9 +51,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${cormorant.variable} ${jetbrainsMono.variable} ${brandFont.variable} h-full antialiased`}
+      className={`${inter.variable} ${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-neutral-bg text-neutral-text font-sans">
+      <body className="min-h-full flex flex-col text-neutral-text font-sans">
         {children}
         <Toaster position="top-right" richColors />
       </body>

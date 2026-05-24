@@ -39,18 +39,20 @@ export async function updateBranding(
   const name = String(formData.get("name") || "").trim();
   const primaryColor = String(formData.get("primaryColor") || "").trim();
   const accentColor = String(formData.get("accentColor") || "").trim();
+  const sidebarColor = String(formData.get("sidebarColor") || "").trim();
   const cardNoPrefix = String(formData.get("cardNoPrefix") || "").trim().toUpperCase();
 
   if (name.length < 2) return { error: "Company name is too short" };
   if (!isValidHex(primaryColor)) return { error: "Primary color must be a #rrggbb hex" };
   if (!isValidHex(accentColor)) return { error: "Accent color must be a #rrggbb hex" };
+  if (!isValidHex(sidebarColor)) return { error: "Sidebar color must be a #rrggbb hex" };
   if (!/^[A-Z0-9]{1,6}$/.test(cardNoPrefix)) {
     return { error: "Card prefix must be 1–6 letters/numbers" };
   }
 
   await prisma.organization.update({
     where: { id: orgId },
-    data: { name, primaryColor, accentColor, cardNoPrefix },
+    data: { name, primaryColor, accentColor, sidebarColor, cardNoPrefix },
   });
 
   revalidatePath("/admin/branding");

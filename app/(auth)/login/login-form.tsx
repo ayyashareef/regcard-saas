@@ -58,7 +58,7 @@ export default function LoginForm({
             <Image src={APP_LOGO} alt={orgName} width={80} height={80} className="rounded-lg" />
           )}
         </div>
-        <h1 className="font-brand text-2xl text-brand-deep">{orgName}</h1>
+        <h1 className="font-sans font-semibold tracking-tight text-2xl text-brand-deep">{orgName}</h1>
         <p className="text-neutral-muted mt-1 text-sm">Sign in to your workspace</p>
       </div>
 

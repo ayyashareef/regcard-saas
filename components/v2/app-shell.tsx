@@ -15,31 +15,27 @@ interface AppShellProps {
 function ShellLayout(props: AppShellProps) {
   const { collapsed, mobileOpen, setMobileOpen } = useShell();
   return (
-    <div
-      className="min-h-screen lg:grid transition-[grid-template-columns] duration-200"
-      style={{
-        // Grid only kicks in at lg (display:grid via the class); this inline
-        // gridTemplateColumns is ignored on mobile where the div is block.
-        gridTemplateColumns: collapsed ? "72px 1fr" : "260px 1fr",
-        background: "var(--color-cream)",
-      }}
-    >
-      <SidebarV2 role={props.role} pendingExtensions={props.pendingExtensions} />
+    <div className={`app ${collapsed ? "collapsed" : ""}`}>
+      <SidebarV2
+        role={props.role}
+        pendingExtensions={props.pendingExtensions}
+        userName={props.userName}
+        userEmail={props.userEmail}
+      />
 
-      {/* Mobile backdrop when the drawer is open */}
+      {/* Mobile drawer backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          style={{ display: "block" }}
           onClick={() => setMobileOpen(false)}
           aria-hidden
         />
       )}
 
-      <div className="flex min-w-0 flex-col" style={{ background: "var(--color-cream)" }}>
+      <div className="main">
         <TopbarV2 userName={props.userName} userEmail={props.userEmail} />
-        <main className="flex-1 overflow-auto" style={{ background: "var(--color-cream)" }}>
-          {props.children}
-        </main>
+        <div className="scroll">{props.children}</div>
       </div>
     </div>
   );

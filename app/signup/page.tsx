@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SignupForm from "./signup-form";
 
-export const metadata = { title: "Create your workspace — RegCard" };
+export const metadata = { title: "Create your workspace" };
 
 export default function SignupPage() {
   return (

@@ -27,9 +27,9 @@ const baseStyle: React.CSSProperties = {
 
 const primaryStyle: React.CSSProperties = {
   ...baseStyle,
-  background: "var(--color-ink-2)",
-  color: "#f5ecd2",
-  borderColor: "var(--color-ink-2)",
+  background: "var(--color-brand)",
+  color: "#fff",
+  borderColor: "var(--color-brand-dark)",
 };
 
 export function ExtensionReviewButtons({ requestId }: Props) {

@@ -30,6 +30,8 @@ model Organization {
   logoPath     String?
   primaryColor String   @default("#1f6feb")
   accentColor  String   @default("#e8c33d")
+  // Dashboard sidebar background. Defaults to the deep navy ink.
+  sidebarColor String   @default("#0f1a2e")
   // Per-tenant reg-card number prefix (replaces the hard-coded "UG" prefix
   // in lib/actions/reg-cards.ts and HOTEL_NAME in lib/config.ts).
   cardNoPrefix String   @default("UG")

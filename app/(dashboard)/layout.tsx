@@ -1,10 +1,16 @@
-import { requireOrg } from "@/lib/tenant";
+import { requireOrg, getOrg } from "@/lib/tenant";
 import { getPendingExtensionCount } from "@/lib/actions/extension-requests";
 import { AppShellV2 } from "@/components/v2/app-shell";
 import { OrgProvider } from "@/components/org-context";
 import { brandCssVars } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
+
+// Browser tab title: "Reg Card — <company name>" (template lives in app/layout).
+export async function generateMetadata() {
+  const org = await getOrg();
+  return { title: org?.name ?? "Dashboard" };
+}
 
 export default async function DashboardLayout({
   children,
@@ -28,7 +34,7 @@ export default async function DashboardLayout({
       }}
     >
       {/* Brand CSS vars cascade to every `bg-brand` / var(--color-brand*) below. */}
-      <div style={brandCssVars(org.primaryColor, org.accentColor)}>
+      <div style={brandCssVars(org.primaryColor, org.accentColor, org.sidebarColor)}>
         <AppShellV2
           role={session.user.role}
           userName={session.user.name || "User"}
