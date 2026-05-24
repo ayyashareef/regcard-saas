@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth/session";
+import { requireOrg } from "@/lib/tenant";
 import {
   getDashboardKpis,
   getTodayArrivals,
@@ -6,37 +6,57 @@ import {
   getOccupancyBreakdown,
   getRecentActivity,
 } from "@/lib/actions/dashboard";
-import { KpiCard } from "@/components/v2/dashboard/kpi-card";
-import { ArrivalsTable } from "@/components/v2/dashboard/arrivals-table";
-import { RecentCardsTable } from "@/components/v2/dashboard/recent-cards-table";
-import { OccupancyRing } from "@/components/v2/dashboard/occupancy-ring";
-import { ActivityFeed } from "@/components/v2/dashboard/activity-feed";
+import { DenseDashboard } from "@/components/v2/dashboard/dense-dashboard";
 
 export const dynamic = "force-dynamic";
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+const TONES = ["#0ea5e9", "#84cc16", "#f97316", "#a855f7", "#ec4899", "#06b6d4", "#14b8a6", "#ef4444"];
+function toneFor(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return TONES[h % TONES.length];
+}
+function initialsOf(name: string | null | undefined) {
+  if (!name) return "—";
+  return name.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+}
+function hhmm(d: Date) {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function dmy(d: Date) {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(d);
+}
+function nightsBetween(a?: Date | null, b?: Date | null) {
+  if (!a || !b) return null;
+  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
 }
 
-function firstName(full: string | null | undefined) {
-  if (!full) return "there";
-  return full.split(/\s+/)[0] || "there";
-}
-
-function weekday() {
-  return new Intl.DateTimeFormat("en-GB", { weekday: "long" }).format(new Date());
-}
+// audit action → human verb + tag + tone
+const ACT: Record<string, { verb: string; tag: string; tone: string }> = {
+  REG_CARD_CREATED: { verb: "created reg card", tag: "check-in", tone: "green" },
+  REG_CARD_UPDATED: { verb: "updated", tag: "edit", tone: "grey" },
+  REG_CARD_DELETED: { verb: "deleted", tag: "card", tone: "rose" },
+  REG_CARD_PDF_DOWNLOADED: { verb: "downloaded PDF for", tag: "pdf", tone: "grey" },
+  USER_CREATED: { verb: "created user", tag: "user", tone: "violet" },
+  USER_UPDATED: { verb: "updated user", tag: "user", tone: "violet" },
+  USER_DEACTIVATED: { verb: "deactivated user", tag: "user", tone: "rose" },
+  USER_LOGIN: { verb: "signed in", tag: "auth", tone: "grey" },
+  USER_LOGOUT: { verb: "signed out", tag: "auth", tone: "grey" },
+  ROOM_CREATED: { verb: "added room", tag: "room", tone: "sky" },
+  ROOM_UPDATED: { verb: "updated room", tag: "room", tone: "sky" },
+  ROOM_DELETED: { verb: "removed room", tag: "room", tone: "rose" },
+  EXTENSION_REQUESTED: { verb: "requested extension", tag: "extension", tone: "amber" },
+  EXTENSION_APPROVED: { verb: "approved extension", tag: "extension", tone: "green" },
+  EXTENSION_REJECTED: { verb: "rejected extension", tag: "extension", tone: "rose" },
+};
 
 export default async function DashboardPage() {
-  const session = await requireAuth();
+  const { session, org } = await requireOrg();
 
   const [kpis, arrivals, recent, occupancy, activity] = await Promise.all([
     getDashboardKpis(),
     getTodayArrivals(8),
-    getRecentRegCards(5),
+    getRecentRegCards(6),
     getOccupancyBreakdown(),
     getRecentActivity(8),
   ]);
@@ -44,109 +64,53 @@ export default async function DashboardPage() {
   const occupancyPct =
     occupancy.total > 0 ? Math.round((occupancy.occupied / occupancy.total) * 100) : 0;
 
-  const isAdmin = session.user.role !== "STAFF";
-
   return (
-    <div className="px-4 py-8 pb-16 sm:px-8 lg:px-14 lg:py-12 lg:pb-20">
-      <div className="mb-10 flex items-end justify-between gap-8 lg:mb-14">
-        <div>
-          <small
-            className="block font-mono uppercase"
-            style={{
-              fontSize: 11,
-              letterSpacing: ".24em",
-              color: "var(--color-brand-deep)",
-              marginBottom: 16,
-              fontWeight: 500,
-            }}
-          >
-            {weekday()} · Front of House
-          </small>
-          <h1
-            className="font-serif"
-            style={{
-              fontWeight: 600,
-              fontSize: "clamp(28px, 6vw, 48px)",
-              lineHeight: 1.05,
-              color: "var(--color-ink)",
-              letterSpacing: "-.005em",
-            }}
-          >
-            {greeting()}, {firstName(session.user.name)}
-            <span
-              className="font-mono uppercase inline-flex items-center gap-1.5"
-              style={{
-                fontSize: 11,
-                letterSpacing: ".16em",
-                color: "var(--color-status-green)",
-                fontWeight: 600,
-                marginLeft: 18,
-                verticalAlign: "middle",
-              }}
-            >
-              <span
-                aria-hidden
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "var(--color-status-green)",
-                  boxShadow: "0 0 0 3px rgba(63,122,74,.18)",
-                  display: "inline-block",
-                }}
-              />
-              Live
-            </span>
-          </h1>
-        </div>
-      </div>
-
-      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:mb-12 lg:grid-cols-4">
-        <KpiCard
-          label="Check-ins Today"
-          value={kpis.todayCheckIns}
-          unit={`/ ${arrivals.length + kpis.todayCheckIns > 0 ? Math.max(kpis.todayCheckIns, arrivals.length) : 0} expected`}
-        />
-        <KpiCard label="Active Guests" value={kpis.activeGuests} unit="in-house" />
-        <KpiCard
-          label="Rooms Occupied"
-          value={kpis.roomsOccupied}
-          unit={`/ ${kpis.totalRooms}`}
-          progressPercent={kpis.totalRooms > 0 ? (kpis.roomsOccupied / kpis.totalRooms) * 100 : 0}
-          trend={{ dir: "flat", text: `${occupancyPct}%` }}
-        />
-        {isAdmin ? (
-          <KpiCard
-            label="Pending Extensions"
-            value={kpis.pendingExtensions}
-            unit="requests"
-            trend={
-              kpis.pendingExtensions > 0
-                ? { dir: "down", text: "Needs review" }
-                : { dir: "up", text: "All clear" }
-            }
-          />
-        ) : (
-          <KpiCard label="Total Rooms" value={kpis.totalRooms} unit="active" />
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 lg:[grid-template-columns:2fr_1fr]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <ArrivalsTable arrivals={arrivals} expected={kpis.todayCheckIns} />
-          <RecentCardsTable cards={recent} />
-        </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          <OccupancyRing
-            total={occupancy.total}
-            occupied={occupancy.occupied}
-            available={occupancy.available}
-            cleaning={occupancy.cleaning}
-            outOfOrder={occupancy.outOfOrder}
-          />
-          {isAdmin && <ActivityFeed entries={activity} />}
-        </div>
-      </div>
-    </div>
+    <DenseDashboard
+      orgName={org.name}
+      isAdmin={session.user.role !== "STAFF"}
+      kpis={{
+        checkInsToday: kpis.todayCheckIns,
+        expected: Math.max(arrivals.length, kpis.todayCheckIns),
+        inHouse: kpis.activeGuests,
+        occupancyPct,
+        totalRooms: kpis.totalRooms,
+        roomsOccupied: kpis.roomsOccupied,
+        pending: kpis.pendingExtensions,
+      }}
+      occupancy={{ ...occupancy, pct: occupancyPct }}
+      arrivals={arrivals.map((c) => ({
+        id: c.id,
+        cardNo: c.cardNo,
+        name: c.guestName || "Unnamed guest",
+        initials: initialsOf(c.guestName),
+        tone: toneFor(c.id),
+        country: c.nationality || c.country || "—",
+        doc: c.idNumber || "—",
+        room: c.room?.number || "—",
+        eta: c.checkInTime || (c.arrivalDate ? hhmm(c.arrivalDate) : "—"),
+        nights: nightsBetween(c.arrivalDate, c.departureDate),
+      }))}
+      recent={recent.map((c) => ({
+        id: c.id,
+        cardNo: c.cardNo,
+        name: c.guestName || "Unnamed guest",
+        initials: initialsOf(c.guestName),
+        tone: toneFor(c.id),
+        room: c.room?.number || "—",
+        created: `${dmy(c.createdAt)} · ${hhmm(c.createdAt)}`,
+      }))}
+      activity={activity.map((a) => {
+        const m = ACT[a.action] || { verb: a.action.toLowerCase().replace(/_/g, " "), tag: "event", tone: "grey" };
+        return {
+          id: a.id,
+          t: hhmm(a.createdAt),
+          who: a.performedBy?.name || "system",
+          verb: m.verb,
+          obj: a.entityLabel || "",
+          tag: m.tag,
+          tone: m.tone,
+        };
+      })}
+    />
   );
 }
