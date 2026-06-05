@@ -6,6 +6,7 @@ import { hexToRgb, shade } from "@/lib/branding";
 import { jsPDF } from "jspdf";
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 
 export async function GET(
   req: NextRequest,
@@ -56,7 +57,6 @@ export async function GET(
   let logoBase64: string | null = null;
   let logoAspect = 1;
   try {
-    const sharp = require("sharp");
     const uploadRoot = path.resolve(process.cwd(), process.env.UPLOAD_DIR || "./uploads");
     const orgLogoPath = org?.logoPath ? path.join(uploadRoot, org.logoPath) : null;
     const logoBuffer =

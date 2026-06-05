@@ -13,16 +13,20 @@ export async function GET(
   }
 
   const { path: pathSegments } = await params;
-  const filename = pathSegments.join("/");
 
-  // Prevent directory traversal
-  const sanitized = path.basename(filename);
-  if (sanitized !== filename || filename.includes("..")) {
-    return NextResponse.json({ message: "Invalid path" }, { status: 400 });
+  // First segment is orgId — users may only access their own org's uploads.
+  const requestedOrgId = pathSegments[0];
+  if (!requestedOrgId || requestedOrgId !== session.user.orgId) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const uploadDir = process.env.UPLOAD_DIR || "./uploads";
-  const filePath = path.join(uploadDir, sanitized);
+  const uploadRoot = path.resolve(process.cwd(), process.env.UPLOAD_DIR || "./uploads");
+  const filePath = path.resolve(uploadRoot, pathSegments.join(path.sep));
+
+  // Traversal guard: resolved path must stay inside the upload root.
+  if (!filePath.startsWith(uploadRoot + path.sep)) {
+    return NextResponse.json({ message: "Invalid path" }, { status: 400 });
+  }
 
   try {
     const buffer = await fs.readFile(filePath);

@@ -13,6 +13,22 @@ const nextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  async headers() {
+    return [
+      {
+        // Apply to every route including API routes.
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Disable the legacy browser XSS auditor (deprecated; a strict CSP is the correct defence).
+          { key: "X-XSS-Protection", value: "0" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: "/v2", destination: "/dashboard", permanent: true },

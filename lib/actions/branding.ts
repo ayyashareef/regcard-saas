@@ -10,7 +10,8 @@ import { revalidatePath } from "next/cache";
 
 export type BrandingState = { ok?: boolean; error?: string } | undefined;
 
-const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+// SVG intentionally excluded: browsers execute scripts in SVG served as image/svg+xml.
+const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2MB
 
 function uploadRoot() {
@@ -76,7 +77,7 @@ export async function uploadBrandingLogo(
     return { error: "Choose an image file" };
   }
   if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
-    return { error: "Logo must be PNG, JPEG, WebP or SVG" };
+    return { error: "Logo must be PNG, JPEG or WebP" };
   }
   if (file.size > MAX_LOGO_BYTES) {
     return { error: "Logo must be under 2MB" };
@@ -86,20 +87,13 @@ export async function uploadBrandingLogo(
   const orgDir = path.join(uploadRoot(), orgId);
   await fs.mkdir(orgDir, { recursive: true });
 
-  let relPath: string;
-  if (file.type === "image/svg+xml") {
-    // Keep vector logos as-is.
-    relPath = path.posix.join(orgId, "logo.svg");
-    await fs.writeFile(path.join(uploadRoot(), relPath), buffer);
-  } else {
-    // Normalize raster logos to a bounded PNG.
-    const png = await sharp(buffer)
-      .resize(512, 512, { fit: "inside", withoutEnlargement: true })
-      .png()
-      .toBuffer();
-    relPath = path.posix.join(orgId, "logo.png");
-    await fs.writeFile(path.join(uploadRoot(), relPath), png);
-  }
+  // Normalize all logos to a bounded PNG via sharp (strips metadata, re-encodes).
+  const png = await sharp(buffer)
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .png()
+    .toBuffer();
+  const relPath = path.posix.join(orgId, "logo.png");
+  await fs.writeFile(path.join(uploadRoot(), relPath), png);
 
   await prisma.organization.update({
     where: { id: orgId },

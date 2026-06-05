@@ -31,12 +31,13 @@ export async function GET(
     const ext = path.extname(filePath).toLowerCase();
     const type =
       ext === ".svg" ? "image/svg+xml" : ext === ".webp" ? "image/webp" : "image/png";
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": type,
-        "Cache-Control": "public, max-age=300",
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": type,
+      "Cache-Control": "public, max-age=300",
+    };
+    // Sandbox any SVG to prevent script execution from legacy uploads.
+    if (ext === ".svg") headers["Content-Security-Policy"] = "sandbox";
+    return new NextResponse(new Uint8Array(buffer), { headers });
   } catch {
     return NextResponse.json({ message: "Not found" }, { status: 404 });
   }
